@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEALA 13 Outreach Tracker</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#f3f5f9;color:#1b2540}
+  header{background:#0B1A40;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  header h1{margin:0;font-size:20px}
+  header small{color:#D19A6B}
+  .badge{font-size:12px;padding:4px 10px;border-radius:12px;background:#D19A6B;color:#0B1A40;font-weight:600}
+  main{padding:20px 24px}
+  .cards{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .card{background:#fff;border-radius:8px;padding:10px 16px;min-width:110px;box-shadow:0 1px 3px #0001;border-top:3px solid #D19A6B}
+  .card b{font-size:22px;display:block}
+  .card span{font-size:12px;color:#667}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .bar input,.bar select{padding:8px;border:1px solid #ccd;border-radius:6px;font-size:14px}
+  button{cursor:pointer;border:0;border-radius:6px;padding:8px 14px;font-size:14px;background:#0B1A40;color:#fff}
+  button.alt{background:#D19A6B;color:#0B1A40;font-weight:600}
+  button.ghost{background:#e6e9f2;color:#0B1A40}
+  .wrap{overflow:auto;background:#fff;border-radius:8px;box-shadow:0 1px 3px #0001;max-height:70vh}
+  table{border-collapse:collapse;width:100%;min-width:1300px}
+  th{position:sticky;top:0;background:#0B1A40;color:#fff;text-align:left;padding:8px;font-size:13px;z-index:1}
+  td{padding:4px;border-bottom:1px solid #eef0f6}
+  td input,td select{width:100%;border:1px solid transparent;background:transparent;padding:6px;font-size:13px;border-radius:4px}
+  td input:hover,td select:hover{border-color:#ccd}
+  td input:focus,td select:focus{border-color:#D19A6B;background:#fffaf5;outline:0}
+  td a{text-decoration:none;font-size:15px}
+  .s-Not-started{background:#eee}.s-Drafted{background:#fff3cd}.s-Mail-sent{background:#d6e8ff}
+  .s-Follow-up-1,.s-Follow-up-2,.s-Follow-up-3{background:#ffe0c2}.s-Replied{background:#e3d4ff}
+  .s-Interested,.s-Nominated{background:#c9f2d3}.s-Declined,.s-Bounced{background:#ffd0d0}
+  .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:10}
+  .modal.on{display:flex}
+  .box{background:#fff;border-radius:10px;padding:22px;width:min(440px,92vw)}
+  .box h3{margin:0 0 8px}
+  .box input{width:100%;padding:10px;border:1px solid #ccd;border-radius:6px;margin:8px 0}
+  .chg{background:#f3f5f9;border-radius:6px;padding:8px;font-size:13px;margin:8px 0;word-break:break-word}
+  .row{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+  .log{margin-top:20px;background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 3px #0001}
+  .log div{font-size:13px;padding:4px 0;border-bottom:1px solid #eef0f6}
+  .note{font-size:12px;color:#667;margin:6px 0}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>SEALA 13 Outreach Tracker</h1><small>14 to 23 January 2027, Bali</small></div>
+  <span class="badge" id="mode">Local mode</span>
+</header>
+<main>
+  <div class="cards" id="cards"></div>
+  <div class="bar">
+    <input id="q" placeholder="Search name, email, association..." oninput="render()" style="min-width:240px">
+    <select id="fs" onchange="render()"></select>
+    <select id="fc" onchange="render()"></select>
+    <button class="alt" onclick="addLead()">+ Add lead</button>
+    <button class="ghost" onclick="exportCSV()">Export CSV</button>
+    <button class="ghost" id="seedBtn" style="display:none" onclick="seed()">Load starter data</button>
+  </div>
+  <div class="note">Click any cell to edit. Every change asks for your name before it is saved.</div>
+  <div class="wrap"><table>
+    <thead><tr><th>Name</th><th>Association</th><th>Country</th><th>Role</th><th>Email</th><th>LinkedIn</th><th>Status</th><th>Mail date</th><th>Notes</th><th>Last edit</th><th></th></tr></thead>
+    <tbody id="tb"></tbody>
+  </table></div>
+  <div class="log"><b>Activity log</b><div id="log"></div></div>
+</main>
+
+<div class="modal" id="m"><div class="box">
+  <h3>Verify your change</h3>
+  <div class="chg" id="mchg"></div>
+  <label>Your name</label>
+  <input id="who" placeholder="Enter your name">
+  <div class="row"><button class="ghost" onclick="cancelChange()">Cancel</button><button class="alt" onclick="confirmChange()">Confirm and save</button></div>
+</div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+/* ===== STEP 1 FOR TEAM SHARING: paste your Firebase config here =====
+   Example:
+   const FIREBASE_CONFIG = { apiKey:"...", authDomain:"...", projectId:"...", appId:"..." };
+   Leave as null to use local mode (data stays in this browser only). */
+const FIREBASE_CONFIG = null;
+
+const STATUSES=["Not started","Drafted","Mail sent","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined","Bounced"];
+const L="https://www.linkedin.com/in/";
+const SEED=[
+["Mr. Truong Gia Binh","VINASA","Vietnam","Chairman, Founder of FPT Group","binh@fpt.com.vn",L+"binh-truong-gia-9a9b2260/","Mail sent","2026-11-19"],
+["Mao Manel","CAMFEBA","Cambodia","HR and Business Advisor, CKK Consulting Group","maomanel@camfeba.com",L+"mao-manel-5555kh/","Drafted","2026-11-19","Sheet said mail address unavailable. Confirm if sent."],
+["Thomas Schings","CAFT","Cambodia","Board Member, CAFT","thomas@caftkh.org",L+"thomasschings/","Drafted","2026-11-19","Sheet said mail address unavailable. Confirm if sent."],
+["Bun Norin Kong","CEA","Cambodia","CEO, CCU Commercial Bank Plc","bunnorin.kong@ccu-bank.com",L+"kongbunnorin/","Mail sent","2026-11-19"],
+["Long Lam","VINITO","Vietnam","Chairman, HCMC Computer Association","long@vietnamisc.com",L+"longlam/","Mail sent","2026-11-19"],
+["Tonichi Achurra-Parekh","IBPAP","Philippines","Consultant, Concentrix Philippines","tonichi.achurra-parekh@concentrix.com",L+"tonichiparekh/","Mail sent","2026-11-19"],
+["Nicki Agcaoili","IBPAP","Philippines","Chief Country Executive, Carelon Global Solutions Philippines","nicki.agcaoili@legato.com",L+"nickiagcaoili/","Mail sent","2026-11-19"],
+["Toan Ngo","VINITO","Vietnam","President, BTZ Group","toan@vnito.org",L+"toanngo/","Mail sent","2026-11-19"],
+["Mr. Pham Tan Cong (Thanh Pham)","VINASA","Vietnam","Saigon Technology","thanh.pham@saigontechnology.com",L+"thanhphamsoftware/","Mail sent","2026-11-19"],
+["Sokleang Long","CAMFEBA","Cambodia","Senior Legal Officer, Hattha Bank","long.sokleang@hatthabank.com",L+"sokleang-long-707a961aa/","Drafted","2026-11-19","Sheet said mail address unavailable. Confirm if sent."],
+["Tomas Pokorny","CAFT","Cambodia","CEO and co-founding member, Pi Pay","tomas@pipay.com",L+"pokornytom/","Mail sent","2026-11-19"],
+["Ayhee Campos","IBPAP","Philippines","Country Head, Infosys BPM","marhodora_campos@infosys.com",L+"ma-rhodora-ayhee-campos-945184212/","Mail sent","2026-11-19","Check draft wording about IBPAP role."],
+["Hong Tran","VINITO","Vietnam","Sr. Vice President, TMA Solutions","tphong@tma.com.vn",L+"tranphuchong/","Mail sent","","Add the date sent."],
+["Sanjiv Gupta","IBPAP","Philippines","President and Country Head, IBM Consulting Global Delivery Center","sanjiv.gupta@ibm.com",L+"sanjiv-k-gupta/","Drafted",""],
+["Zain Tariq","APICTA / P@SHA","Pakistan","Economy Coordinator, Manager Industry Engagement","zain@pasha.org.pk",L+"zain-tariq-a4271b186/","Drafted","2026-11-19"],
+["Vajeendra S Kandegamage","APICTA / BCS Sri Lanka","Sri Lanka","Immediate Past Chairman, BCS Sri Lanka Section","vajeendrak@bcssrilanka.org",L+"vajeendrask/","Drafted","2026-11-19"],
+["Muhammad Razan Haji Abdul Razak","APICTA / AITI","Brunei","Senior Manager (confirm title), AITI","muhd.razak@aiti.gov.bn",L+"muhd-razan-hj-abd-razak-4295aa200/","Drafted","2026-11-19","Sheet says Member (AITI). Confirm title."],
+["Dr. Gansen Zhao","APICTA / SCNU","China","Professor of Computer Science, South China Normal University","gzhao@m.scnu.edu.cn",L+"zhaogansen/","Drafted","2026-11-19","LinkedIn shows UK location. Confirm."],
+["Mic Suphachai Sachaphibulkij","APICTA / ATCI","Thailand","Advisor, Association of Thai ICT Industry","mic_ss@yahoo.com",L+"mic-sachaphibulkij-682a4410/","Drafted","2026-11-19"],
+["Richan Shrestha","APICTA / NAS-IT","Nepal","President, NAS-IT","richan.shrestha@quickfoxtechnologies.com",L+"richanshrestha/","Drafted","2026-11-19"],
+["Daw Khin Aye Wyn","APICTA / MCF","Myanmar","Secretary General, Myanmar Computer Federation","kaw@mcf.org.mm",L+"josephinesu/","Drafted","2026-11-19"],
+["Mrs. Agnes Mak","APICTA / HKCS","Hong Kong","Executive Director, HKPC","agnes@hkpc.org",L+"agnes-mak-324a1190/","Drafted","2026-11-20"],
+["Dimas Aryo Wicaksono","APICTA / ASPILUKI","Indonesia","Economy Coordinator","dimas.aryo@gmail.com",L+"dimas-satria-wicaksono/","Not started",""],
+["Prof Cheng Kiang Farn","APICTA / TCA","Chinese Taipei","Visiting Professor","ckiangfarn@ncu.edu",L+"ck-farn-a04b5a55/","Not started",""]
+];
+
+let db=null, leads=[], logs=[], pending=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const now=()=>new Date().toISOString();
+const mk=(r,i)=>({id:"s"+(i+1),name:r[0],assoc:r[1],country:r[2],role:r[3],email:r[4],linkedin:r[5],status:r[6],date:r[7]||"",notes:r[8]||"",by:"",at:""});
+
+async function init(){
+  if(FIREBASE_CONFIG){
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db=firebase.firestore();
+    $("mode").textContent="Shared mode (live)";
+    db.collection("leads").onSnapshot(s=>{
+      leads=s.docs.map(d=>d.data());
+      $("seedBtn").style.display=leads.length?"none":"inline-block";
+      if(!document.activeElement||!document.activeElement.closest("#tb"))render();
+    });
+    db.collection("log").orderBy("at","desc").limit(100).onSnapshot(s=>{logs=s.docs.map(d=>d.data());renderLog()});
+  }else{
+    leads=JSON.parse(localStorage.getItem("seala13_leads")||"null")||SEED.map(mk);
+    logs=JSON.parse(localStorage.getItem("seala13_log")||"[]");
+    saveLocal();
+  }
+  $("who").value=localStorage.getItem("seala13_name")||"";
+  render();
+}
+function saveLocal(){localStorage.setItem("seala13_leads",JSON.stringify(leads));localStorage.setItem("seala13_log",JSON.stringify(logs.slice(0,100)))}
+async function persist(l){ if(db) await db.collection("leads").doc(l.id).set(l); else saveLocal(); }
+async function addLog(who,text){
+  const e={who,text,at:now()};
+  if(db) await db.collection("log").add(e); else {logs.unshift(e);saveLocal();renderLog();}
+}
+async function seed(){ for(const l of SEED.map(mk)) await db.collection("leads").doc(l.id).set(l); }
+
+function render(){
+  const q=$("q").value.toLowerCase(), fs=$("fs").value, fc=$("fc").value;
+  const countries=[...new Set(leads.map(l=>l.country).filter(Boolean))].sort();
+  if(!$("fs").options.length){$("fs").innerHTML='<option value="">All statuses</option>'+STATUSES.map(s=>`<option>${s}</option>`).join("")}
+  const cur=$("fc").value;
+  $("fc").innerHTML='<option value="">All countries</option>'+countries.map(c=>`<option ${c===cur?"selected":""}>${esc(c)}</option>`).join("");
+  const rows=leads.filter(l=>(!fs||l.status===fs)&&(!fc||l.country===fc)&&(!q||JSON.stringify(l).toLowerCase().includes(q)));
+  $("tb").innerHTML=rows.map(l=>`<tr>
+    ${["name","assoc","country","role","email"].map(f=>`<td><input value="${esc(l[f])}" data-id="${l.id}" data-f="${f}" onchange="edit(this)"></td>`).join("")}
+    <td style="display:flex;align-items:center"><input value="${esc(l.linkedin)}" data-id="${l.id}" data-f="linkedin" onchange="edit(this)">${l.linkedin?`<a href="${esc(l.linkedin)}" target="_blank" title="Open">&#128279;</a>`:""}</td>
+    <td><select class="s-${l.status.replace(/ /g,"-")}" data-id="${l.id}" data-f="status" onchange="edit(this)">${STATUSES.map(s=>`<option ${s===l.status?"selected":""}>${s}</option>`).join("")}</select></td>
+    <td><input type="date" value="${esc(l.date)}" data-id="${l.id}" data-f="date" onchange="edit(this)"></td>
+    <td><input value="${esc(l.notes)}" data-id="${l.id}" data-f="notes" onchange="edit(this)"></td>
+    <td style="font-size:11px;color:#667;white-space:nowrap">${l.by?esc(l.by)+"<br>"+new Date(l.at).toLocaleDateString():""}</td>
+    <td><button class="ghost" onclick="del('${l.id}')">&#10005;</button></td></tr>`).join("");
+  const cnt=s=>leads.filter(l=>l.status===s).length;
+  const sent=leads.filter(l=>["Mail sent","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined"].includes(l.status)).length;
+  $("cards").innerHTML=[["Total",leads.length],["Drafted",cnt("Drafted")],["Sent",sent],["Replied",cnt("Replied")],["Interested",cnt("Interested")],["Nominated",cnt("Nominated")],["Declined",cnt("Declined")]].map(c=>`<div class="card"><b>${c[1]}</b><span>${c[0]}</span></div>`).join("");
+  renderLog();
+}
+function renderLog(){ $("log").innerHTML=logs.slice(0,30).map(e=>`<div><b>${esc(e.who)}</b> ${esc(e.text)} <span style="color:#889">(${new Date(e.at).toLocaleString()})</span></div>`).join("")||"<div>No changes yet.</div>"; }
+
+/* ===== change with verification ===== */
+function edit(el){
+  const l=leads.find(x=>x.id===el.dataset.id), f=el.dataset.f;
+  if(l[f]===el.value)return;
+  const label={assoc:"association"}[f]||f;
+  pending={type:"edit",id:l.id,f,old:l[f],val:el.value,msg:`${l.name}: ${label} "${l[f]}" to "${el.value}"`,html:`<b>${esc(l.name)}</b><br>${esc(label)}: "${esc(l[f])}" &rarr; "${esc(el.value)}"`};
+  openModal();
+}
+function addLead(){
+  pending={type:"add",msg:"added a new lead",html:"Add a new blank lead to the tracker."};
+  openModal();
+}
+function del(id){
+  const l=leads.find(x=>x.id===id);
+  pending={type:"del",id,msg:`deleted lead ${l.name}`,html:`Delete <b>${esc(l.name)}</b> from the tracker.`};
+  openModal();
+}
+function openModal(){ $("mchg").innerHTML=pending.html; $("m").classList.add("on"); $("who").focus(); }
+function cancelChange(){ pending=null; $("m").classList.remove("on"); render(); }
+async function confirmChange(){
+  const who=$("who").value.trim();
+  if(!who){$("who").style.borderColor="red";return;}
+  $("who").style.borderColor="";
+  localStorage.setItem("seala13_name",who);
+  const p=pending; pending=null; $("m").classList.remove("on");
+  if(p.type==="edit"){
+    const l=leads.find(x=>x.id===p.id); l[p.f]=p.val; l.by=who; l.at=now();
+    await persist(l); await addLog(who,"changed "+p.msg);
+  }else if(p.type==="add"){
+    const l={id:"n"+Date.now(),name:"New lead",assoc:"",country:"",role:"",email:"",linkedin:"",status:"Not started",date:"",notes:"",by:who,at:now()};
+    leads.unshift(l); await persist(l); await addLog(who,"added a new lead");
+  }else if(p.type==="del"){
+    leads=leads.filter(x=>x.id!==p.id);
+    if(db) await db.collection("leads").doc(p.id).delete(); else saveLocal();
+    await addLog(who,p.msg);
+  }
+  render();
+}
+function exportCSV(){
+  const h=["name","assoc","country","role","email","linkedin","status","date","notes","by","at"];
+  const csv=[h.join(",")].concat(leads.map(l=>h.map(k=>'"'+String(l[k]||"").replace(/"/g,'""')+'"').join(","))).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="seala13_outreach.csv";a.click();
+}
+init();
+</script>
+</body>
+</html>
