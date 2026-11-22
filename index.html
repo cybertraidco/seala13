@@ -22,7 +22,7 @@
   button.alt{background:#D19A6B;color:#0B1A40;font-weight:600}
   button.ghost{background:#e6e9f2;color:#0B1A40}
   .wrap{overflow:auto;background:#fff;border-radius:8px;box-shadow:0 1px 3px #0001;max-height:70vh}
-  table{border-collapse:collapse;width:100%;min-width:1300px}
+  table{border-collapse:collapse;width:100%;min-width:1400px}
   th{position:sticky;top:0;background:#0B1A40;color:#fff;text-align:left;padding:8px;font-size:13px;z-index:1}
   td{padding:4px;border-bottom:1px solid #eef0f6}
   td input,td select{width:100%;border:1px solid transparent;background:transparent;padding:6px;font-size:13px;border-radius:4px}
@@ -30,8 +30,10 @@
   td input:focus,td select:focus{border-color:#D19A6B;background:#fffaf5;outline:0}
   td a{text-decoration:none;font-size:15px}
   .s-Not-started{background:#eee}.s-Drafted{background:#fff3cd}.s-Mail-sent{background:#d6e8ff}
+  .s-Invitation-scheduled,.s-Follow-up-1-scheduled{background:#fff0c2}
   .s-Follow-up-1,.s-Follow-up-2,.s-Follow-up-3{background:#ffe0c2}.s-Replied{background:#e3d4ff}
   .s-Interested,.s-Nominated{background:#c9f2d3}.s-Declined,.s-Bounced{background:#ffd0d0}
+  .s-Mail-not-found,.s-Address-unavailable{background:#ffd9d9}
   .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:10}
   .modal.on{display:flex}
   .box{background:#fff;border-radius:10px;padding:22px;width:min(440px,92vw)}
@@ -42,6 +44,9 @@
   .log{margin-top:20px;background:#fff;border-radius:8px;padding:14px;box-shadow:0 1px 3px #0001}
   .log div{font-size:13px;padding:4px 0;border-bottom:1px solid #eef0f6}
   .note{font-size:12px;color:#667;margin:6px 0}
+  #msg{display:none;padding:10px 14px;border-radius:8px;margin-bottom:12px;font-size:14px}
+  #msg.err{display:block;background:#ffd9d9;color:#7a0b0b}
+  #msg.info{display:block;background:#dbe9ff;color:#0B1A40}
 </style>
 </head>
 <body>
@@ -50,6 +55,7 @@
   <span class="badge" id="mode">Local mode</span>
 </header>
 <main>
+  <div id="msg"></div>
   <div class="cards" id="cards"></div>
   <div class="bar">
     <input id="q" placeholder="Search name, email, association..." oninput="render()" style="min-width:240px">
@@ -57,7 +63,7 @@
     <select id="fc" onchange="render()"></select>
     <button class="alt" onclick="addLead()">+ Add lead</button>
     <button class="ghost" onclick="exportCSV()">Export CSV</button>
-    <button class="ghost" id="seedBtn" style="display:none" onclick="seed()">Load starter data</button>
+    <button class="alt" id="seedBtn" style="display:none" onclick="seed()">Load starter data</button>
   </div>
   <div class="note">Click any cell to edit. Every change asks for your name before it is saved.</div>
   <div class="wrap"><table>
@@ -76,41 +82,70 @@
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
-/* ===== STEP 1 FOR TEAM SHARING: paste your Firebase config here =====
-   Example:
-   const FIREBASE_CONFIG = { apiKey:"...", authDomain:"...", projectId:"...", appId:"..." };
-   Leave as null to use local mode (data stays in this browser only). */
-const FIREBASE_CONFIG = null;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDm1ipc-eHLNwu6tPm93x_A9gluONR1WNw",
+  authDomain: "seala-13-f6438.firebaseapp.com",
+  databaseURL: "https://seala-13-f6438-default-rtdb.firebaseio.com",
+  projectId: "seala-13-f6438",
+  storageBucket: "seala-13-f6438.firebasestorage.app",
+  messagingSenderId: "164377799490",
+  appId: "1:164377799490:web:fa1b390c70c3049071f6db"
+};
 
-const STATUSES=["Not started","Drafted","Mail sent","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined","Bounced"];
+const STATUSES=["Not started","Drafted","Mail sent","Invitation scheduled","Follow-up 1 scheduled","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined","Bounced","Mail not found","Address unavailable"];
+const SCHEDULED=["Invitation scheduled","Follow-up 1 scheduled"];
+const FLAGGED=["Mail not found","Address unavailable"];
 const L="https://www.linkedin.com/in/";
+// [name, association, country, role, email, linkedin, status, mail date, notes]
 const SEED=[
-["Mr. Truong Gia Binh","VINASA","Vietnam","Chairman, Founder of FPT Group","binh@fpt.com.vn",L+"binh-truong-gia-9a9b2260/","Mail sent","2026-11-19"],
-["Mao Manel","CAMFEBA","Cambodia","HR and Business Advisor, CKK Consulting Group","maomanel@camfeba.com",L+"mao-manel-5555kh/","Drafted","2026-11-19","Sheet said mail address unavailable. Confirm if sent."],
-["Thomas Schings","CAFT","Cambodia","Board Member, CAFT","thomas@caftkh.org",L+"thomasschings/","Drafted","2026-11-19","Sheet said mail address unavailable. Confirm if sent."],
-["Bun Norin Kong","CEA","Cambodia","CEO, CCU Commercial Bank Plc","bunnorin.kong@ccu-bank.com",L+"kongbunnorin/","Mail sent","2026-11-19"],
-["Long Lam","VINITO","Vietnam","Chairman, HCMC Computer Association","long@vietnamisc.com",L+"longlam/","Mail sent","2026-11-19"],
-["Tonichi Achurra-Parekh","IBPAP","Philippines","Consultant, Concentrix Philippines","tonichi.achurra-parekh@concentrix.com",L+"tonichiparekh/","Mail sent","2026-11-19"],
-["Nicki Agcaoili","IBPAP","Philippines","Chief Country Executive, Carelon Global Solutions Philippines","nicki.agcaoili@legato.com",L+"nickiagcaoili/","Mail sent","2026-11-19"],
-["Toan Ngo","VINITO","Vietnam","President, BTZ Group","toan@vnito.org",L+"toanngo/","Mail sent","2026-11-19"],
-["Mr. Pham Tan Cong (Thanh Pham)","VINASA","Vietnam","Saigon Technology","thanh.pham@saigontechnology.com",L+"thanhphamsoftware/","Mail sent","2026-11-19"],
-["Sokleang Long","CAMFEBA","Cambodia","Senior Legal Officer, Hattha Bank","long.sokleang@hatthabank.com",L+"sokleang-long-707a961aa/","Drafted","2026-11-19","Sheet said mail address unavailable. Confirm if sent."],
-["Tomas Pokorny","CAFT","Cambodia","CEO and co-founding member, Pi Pay","tomas@pipay.com",L+"pokornytom/","Mail sent","2026-11-19"],
-["Ayhee Campos","IBPAP","Philippines","Country Head, Infosys BPM","marhodora_campos@infosys.com",L+"ma-rhodora-ayhee-campos-945184212/","Mail sent","2026-11-19","Check draft wording about IBPAP role."],
-["Hong Tran","VINITO","Vietnam","Sr. Vice President, TMA Solutions","tphong@tma.com.vn",L+"tranphuchong/","Mail sent","","Add the date sent."],
-["Sanjiv Gupta","IBPAP","Philippines","President and Country Head, IBM Consulting Global Delivery Center","sanjiv.gupta@ibm.com",L+"sanjiv-k-gupta/","Drafted",""],
-["Zain Tariq","APICTA / P@SHA","Pakistan","Economy Coordinator, Manager Industry Engagement","zain@pasha.org.pk",L+"zain-tariq-a4271b186/","Drafted","2026-11-19"],
-["Vajeendra S Kandegamage","APICTA / BCS Sri Lanka","Sri Lanka","Immediate Past Chairman, BCS Sri Lanka Section","vajeendrak@bcssrilanka.org",L+"vajeendrask/","Drafted","2026-11-19"],
-["Muhammad Razan Haji Abdul Razak","APICTA / AITI","Brunei","Senior Manager (confirm title), AITI","muhd.razak@aiti.gov.bn",L+"muhd-razan-hj-abd-razak-4295aa200/","Drafted","2026-11-19","Sheet says Member (AITI). Confirm title."],
-["Dr. Gansen Zhao","APICTA / SCNU","China","Professor of Computer Science, South China Normal University","gzhao@m.scnu.edu.cn",L+"zhaogansen/","Drafted","2026-11-19","LinkedIn shows UK location. Confirm."],
-["Mic Suphachai Sachaphibulkij","APICTA / ATCI","Thailand","Advisor, Association of Thai ICT Industry","mic_ss@yahoo.com",L+"mic-sachaphibulkij-682a4410/","Drafted","2026-11-19"],
-["Richan Shrestha","APICTA / NAS-IT","Nepal","President, NAS-IT","richan.shrestha@quickfoxtechnologies.com",L+"richanshrestha/","Drafted","2026-11-19"],
-["Daw Khin Aye Wyn","APICTA / MCF","Myanmar","Secretary General, Myanmar Computer Federation","kaw@mcf.org.mm",L+"josephinesu/","Drafted","2026-11-19"],
-["Mrs. Agnes Mak","APICTA / HKCS","Hong Kong","Executive Director, HKPC","agnes@hkpc.org",L+"agnes-mak-324a1190/","Drafted","2026-11-20"],
-["Dimas Aryo Wicaksono","APICTA / ASPILUKI","Indonesia","Economy Coordinator","dimas.aryo@gmail.com",L+"dimas-satria-wicaksono/","Not started",""],
-["Prof Cheng Kiang Farn","APICTA / TCA","Chinese Taipei","Visiting Professor","ckiangfarn@ncu.edu",L+"ck-farn-a04b5a55/","Not started",""]
+["Mr. Truong Gia Binh","VINASA","Vietnam","Chairman, Founder of FPT Group","binh@fpt.com.vn",L+"binh-truong-gia-9a9b2260/","Mail not found","2026-11-19",""],
+["Mao Manel","CAMFEBA","Cambodia","Human Resource and Business Advisor, CKK Consulting Group","maomanel@camfeba.com",L+"mao-manel-5555kh/","Address unavailable","2026-11-19","Sheet: Mail address isn't available."],
+["Thomas Schings","CAFT","Cambodia","Member, Board of Directors of CAFT","thomas@caftkh.org",L+"thomasschings/","Address unavailable","2026-11-19","Sheet: Mail address isn't available."],
+["Bun Norin Kong","CEA","Cambodia","Chief Executive Officer, CCU Commercial Bank Plc","bunnorin.kong@ccu-bank.com / kongbunnorin@gmail.com",L+"kongbunnorin/","Mail not found","2026-11-19",""],
+["Long Lam","VINITO","Vietnam","Chairman, HCMC Computer Association (HCA)","long@vietnamisc.com / eventclick@gmail.com",L+"longlam/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Tonichi Achurra-Parekh","IBPAP","Philippines","Consultant, Concentrix Philippines","tonichi.achurra-parekh@concentrix.com",L+"tonichiparekh/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Nicki Agcaoili","IBPAP","Philippines","Chief Country Executive, Carelon Global Solutions Philippines, Inc.","nicki.agcaoili@legato.com",L+"nickiagcaoili/","Replied","2026-11-19","Got back to us and replied."],
+["Toan Ngo","VINITO","Vietnam","President, BTZ Group","toan@vnito.org / ngovantoan@gmail.com",L+"toanngo/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Mr. Pham Tan Cong (Thanh Pham)","VINASA","Vietnam","Standing Deputy Secretary, Party Committee of Centrally-run Business's Sector","thanh.pham@saigontechnology.com",L+"thanhphamsoftware/","Replied","2026-11-19","Got back to us and replied."],
+["Sokleang Long","CAMFEBA","Cambodia","Senior Legal Officer for Corporate Registration, Hattha Bank","long.sokleang@hatthabank.com",L+"sokleang-long-707a961aa/","Address unavailable","2026-11-19","Sheet: Mail address isn't available."],
+["Tomas Pokorny","CAFT","Cambodia","CEO and co-founding member, Pi Pay","tomas@pipay.com",L+"pokornytom/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Ayhee Campos","IBPAP","Philippines","Country Head and Regional Delivery Center Head, Infosys BPM","marhodora_campos@infosys.com",L+"ma-rhodora-ayhee-campos-945184212/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Hong Tran","VINITO","Vietnam","Sr. Vice President, TMA Solutions","tphong@tma.com.vn",L+"tranphuchong/","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
+["Sanjiv Gupta","IBPAP","Philippines","President and Country Head of IBM Consulting's Global Delivery Center in the Philippines of Infosys BPM","sanjiv.gupta@ibm.com / sanjiv_k_gupta@hotmail.com",L+"sanjiv-k-gupta/","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet. Role text as in sheet."],
+["An Mai","VINITO","Vietnam","President, IMT Solutions","an.mai@imt-soft.com / ansaigon@gmail.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
+["Van Dang","VINITO","Vietnam","CEO, Savvycom","van.dang@savvycomsoftware.com / van.dangthi@gmail.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
+["Quyen Nguyen","VINITO","Vietnam","CEO, Sharework","quyen.nguyen@women-in-tech.org","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
+["Tai Huynh","VINITO","Vietnam","CEO, Kyanon Digital","tai@agilevietnam.org / hlttai@gmail.com","","Mail not found","","Sheet: Sent to gmail. First mail not found."],
+["Thuan Tran","VINITO","Vietnam","Regional Director of Commercial and Partnership and Country Executive Vietnam, TASConnect","thuan.tran@tasconnect.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
+["Lay Chantheara","CAMFEBA","Cambodia","1. Private Sector Coordinator, AVT Project; 2. National Industrial Liaison of CAMFEBA","lchantheara@camfeba.com","","Follow-up 1 scheduled","","Sheet: Schedule for 20 Nov."],
+["Piseth Sok","CAMFEBA","Cambodia","1. CEO and 2. President of 1. GGear Group, 2. Footprints International School","pisethsok@ggear.com.kh","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov."],
+["Sopheap Eng","CAMFEBA","Cambodia","1. Managing Director; 2. Founding Member / Council Member (part-time) of 1. Optimal P, 2. Asean Future Workforce Council (AFWC)","esopheap@yahoo.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov."],
+["Glen de Leon","CAFT","Cambodia","Marketing and Public Relations Consultant of CAFT","glen@brixiegroup.com","","Mail not found","",""],
+["Ambe Tierro","IBPAP","Philippines","Country Managing Director, Accenture Technology Centers in the Philippines; Lead of Accenture in the Philippines","ambe.c.tierro@accenture.com / actierro@gmail.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Kaye Bondoc-De La Cruz","IBPAP","Philippines","Head, IT-BPM Group of PLDT Enterprise and PLDT Global Enterprise","kayedelacruz@pldt.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["David Leechiu","IBPAP","Philippines","CEO, Leechiu Property Consultants, Inc.","david@leechiu.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Sandeep Uppal","IBPAP","Philippines","President and Chief Executive Officer, HSBC Philippines","sandeep.uppal@hsbc.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Marlyn Montano","IBPAP","Philippines","President, Animation Council Philippines, Inc. (ACPI) / CEO","marlyn.montano@teamappinc.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Haidee Enriquez","IBPAP","Philippines","President, Contact Center Association of the Philippines (CCAP) / CEO of MicroSourcing, Inc.","haidee@microsourcing.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Paolo La'O","IBPAP","Philippines","Chairman, Global Capability Center Council Philippines (GC3)","paolo.lao@giccphilippines.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Alvin Juban","IBPAP","Philippines","Chairman, Game Developers Association of the Philippines (GDAP)","alvin.juban@synergy88.media","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["JL Botor","IBPAP","Philippines","President, Healthcare Information Management Association of the Philippines (HIMAP) / Country Head of Worldsource Philippines","jl.botor@sustainablebilling.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Jonathan De Luzuriaga","IBPAP","Philippines","President, Philippine Software Industry Association (PSIA) / CEO of Spring Valley PH","jdl@springvalley.tech","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Jack Madrid","IBPAP","Philippines","President and CEO of IBPAP","jackmadrid@ibpap.org","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Atty. Bob Guinto","IBPAP","Philippines","Corporate Secretary, IBPAP / Managing Director of Nisce Mamuric Guinto Rivera and Alcantara Law Offices","bob.guinto@nmgra-law.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
+["Zain Tariq","APICTA / P@SHA","Pakistan","Economy Coordinator (Manager Industry Engagement), Pakistan Software Houses Association (P@SHA)","zain@pasha.org.pk",L+"zain-tariq-a4271b186/","Replied","2026-11-19","Got back to us and replied."],
+["Vajeendra S Kandegamage","APICTA / BCS Sri Lanka","Sri Lanka","Immediate Past Chairman, BCS Sri Lanka Section","vajeendrak@bcssrilanka.org",L+"vajeendrask/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Muhammad Razan Haji Abdul Razak","APICTA / AITI","Brunei","Authority for Info-Communications Technology Industry (AITI) / Info-Comm Federation (IFB), Member (AITI)","muhd.razak@aiti.gov.bn",L+"muhd-razan-hj-abd-razak-4295aa200/","Mail not found","2026-11-19",""],
+["Dr. Gansen Zhao","APICTA / SCNU","China","Professor of Computer Science, South China Normal University","gzhao@m.scnu.edu.cn",L+"zhaogansen/","Mail not found","2026-11-19",""],
+["Mr. Mic Suphachai Sachaphibulkij","APICTA / ATCI","Thailand","Advisor, Association of Thai ICT Industry (ATCI)","mic_ss@yahoo.com",L+"mic-sachaphibulkij-682a4410/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Mr. Richan Shrestha","APICTA / NAS-IT","Nepal","President, Nepal Association for Software and I.T. Services Companies (NAS-IT)","richan.shrestha@quickfoxtechnologies.com",L+"richanshrestha/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Daw Khin Aye Wyn","APICTA / MCF","Myanmar","Economy Coordinator / Secretary General, Myanmar Computer Federation (MCF)","kaw@mcf.org.mm",L+"josephinesu/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
+["Mrs. Agnes Mak","APICTA / HKCS","Hong Kong","Member of Advisory Council, Hong Kong Computer Society (HKCS)","agnes@hkpc.org",L+"agnes-mak-324a1190/","Follow-up 1 scheduled","2026-11-20","Follow-up 1 scheduled 23 Nov."],
+["Dimas Aryo Wicaksono","APICTA / ASPILUKI","Indonesia","Economy Coordinator, Asosiasi Perantishi Lunak Telematika Indonesia (ASPILUKI)","dimas.aryo@gmail.com",L+"dimas-satria-wicaksono/","Follow-up 1 scheduled","2026-11-20","Follow-up 1 scheduled 23 Nov."],
+["Prof Cheng Kiang Farn","APICTA / TCA","Chinese Taipei","Visiting Professor, Taiwan Computer Association (TCA)","ckiangfarn@ncu.edu",L+"ck-farn-a04b5a55/","Mail not found","2026-11-20",""],
+["Ms. Suwipa Wanasathop","APICTA / NSTDA","Thailand","Registrar Observer, National Science and Technology Development Agency (NSTDA)","suwipa@nstda.or.th","","Follow-up 1 scheduled","2026-11-20","Follow-up 1 scheduled 23 Nov."]
 ];
 
 let db=null, leads=[], logs=[], pending=null;
@@ -118,18 +153,39 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 const now=()=>new Date().toISOString();
 const mk=(r,i)=>({id:"s"+(i+1),name:r[0],assoc:r[1],country:r[2],role:r[3],email:r[4],linkedin:r[5],status:r[6],date:r[7]||"",notes:r[8]||"",by:"",at:""});
+const configured=()=>FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey&&FIREBASE_CONFIG.apiKey.indexOf("YOUR_")!==0&&FIREBASE_CONFIG.databaseURL.indexOf("YOUR_")===-1;
+function showMsg(type,text){const m=$("msg");m.className=type;m.textContent=text}
+function hideMsg(){$("msg").className="";$("msg").textContent=""}
+function sortLeads(a){
+  return a.sort((x,y)=>{
+    const xs=x.id[0]==="s", ys=y.id[0]==="s";
+    if(xs&&ys) return parseInt(x.id.slice(1))-parseInt(y.id.slice(1));
+    if(xs) return 1; if(ys) return -1;
+    return y.id.localeCompare(x.id);
+  });
+}
 
 async function init(){
-  if(FIREBASE_CONFIG){
-    firebase.initializeApp(FIREBASE_CONFIG);
-    db=firebase.firestore();
+  if(configured()){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db=firebase.database();
+    }catch(e){ showMsg("err","Firebase failed to start: "+e.message); }
     $("mode").textContent="Shared mode (live)";
-    db.collection("leads").onSnapshot(s=>{
-      leads=s.docs.map(d=>d.data());
+    db.ref("leads").on("value",s=>{
+      const v=s.val()||{};
+      leads=sortLeads(Object.values(v));
       $("seedBtn").style.display=leads.length?"none":"inline-block";
+      if(!leads.length) showMsg("info","The database is empty. Click \"Load starter data\" to load the contacts.");
+      else hideMsg();
       if(!document.activeElement||!document.activeElement.closest("#tb"))render();
+    },err=>{
+      showMsg("err","Cannot read the database: "+err.message+". In Firebase, open Realtime Database, then Rules, set read and write to true, and click Publish.");
     });
-    db.collection("log").orderBy("at","desc").limit(100).onSnapshot(s=>{logs=s.docs.map(d=>d.data());renderLog()});
+    db.ref("log").orderByChild("at").limitToLast(100).on("value",s=>{
+      const arr=[]; s.forEach(c=>{arr.push(c.val())});
+      logs=arr.reverse(); renderLog();
+    },()=>{});
   }else{
     leads=JSON.parse(localStorage.getItem("seala13_leads")||"null")||SEED.map(mk);
     logs=JSON.parse(localStorage.getItem("seala13_log")||"[]");
@@ -139,12 +195,25 @@ async function init(){
   render();
 }
 function saveLocal(){localStorage.setItem("seala13_leads",JSON.stringify(leads));localStorage.setItem("seala13_log",JSON.stringify(logs.slice(0,100)))}
-async function persist(l){ if(db) await db.collection("leads").doc(l.id).set(l); else saveLocal(); }
+async function persist(l){
+  if(db){ try{ await db.ref("leads/"+l.id).set(l); }catch(e){ showMsg("err","Save failed: "+e.message); } }
+  else saveLocal();
+}
 async function addLog(who,text){
   const e={who,text,at:now()};
-  if(db) await db.collection("log").add(e); else {logs.unshift(e);saveLocal();renderLog();}
+  if(db){ try{ await db.ref("log").push(e); }catch(x){} } else {logs.unshift(e);saveLocal();renderLog();}
 }
-async function seed(){ for(const l of SEED.map(mk)) await db.collection("leads").doc(l.id).set(l); }
+async function seed(){
+  const obj={};
+  SEED.map(mk).forEach(l=>{obj[l.id]=l});
+  try{
+    showMsg("info","Loading contacts...");
+    await db.ref("leads").update(obj);
+    hideMsg();
+  }catch(e){
+    showMsg("err","Could not load data: "+e.message+". Check Realtime Database, then Rules, set read and write to true and click Publish.");
+  }
+}
 
 function render(){
   const q=$("q").value.toLowerCase(), fs=$("fs").value, fc=$("fc").value;
@@ -156,19 +225,18 @@ function render(){
   $("tb").innerHTML=rows.map(l=>`<tr>
     ${["name","assoc","country","role","email"].map(f=>`<td><input value="${esc(l[f])}" data-id="${l.id}" data-f="${f}" onchange="edit(this)"></td>`).join("")}
     <td style="display:flex;align-items:center"><input value="${esc(l.linkedin)}" data-id="${l.id}" data-f="linkedin" onchange="edit(this)">${l.linkedin?`<a href="${esc(l.linkedin)}" target="_blank" title="Open">&#128279;</a>`:""}</td>
-    <td><select class="s-${l.status.replace(/ /g,"-")}" data-id="${l.id}" data-f="status" onchange="edit(this)">${STATUSES.map(s=>`<option ${s===l.status?"selected":""}>${s}</option>`).join("")}</select></td>
+    <td><select class="s-${(l.status||"Not started").replace(/ /g,"-")}" data-id="${l.id}" data-f="status" onchange="edit(this)">${STATUSES.map(s=>`<option ${s===l.status?"selected":""}>${s}</option>`).join("")}</select></td>
     <td><input type="date" value="${esc(l.date)}" data-id="${l.id}" data-f="date" onchange="edit(this)"></td>
     <td><input value="${esc(l.notes)}" data-id="${l.id}" data-f="notes" onchange="edit(this)"></td>
     <td style="font-size:11px;color:#667;white-space:nowrap">${l.by?esc(l.by)+"<br>"+new Date(l.at).toLocaleDateString():""}</td>
     <td><button class="ghost" onclick="del('${l.id}')">&#10005;</button></td></tr>`).join("");
   const cnt=s=>leads.filter(l=>l.status===s).length;
-  const sent=leads.filter(l=>["Mail sent","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined"].includes(l.status)).length;
-  $("cards").innerHTML=[["Total",leads.length],["Drafted",cnt("Drafted")],["Sent",sent],["Replied",cnt("Replied")],["Interested",cnt("Interested")],["Nominated",cnt("Nominated")],["Declined",cnt("Declined")]].map(c=>`<div class="card"><b>${c[1]}</b><span>${c[0]}</span></div>`).join("");
+  const inSet=a=>leads.filter(l=>a.includes(l.status)).length;
+  $("cards").innerHTML=[["Total",leads.length],["Replied",cnt("Replied")],["Scheduled",inSet(SCHEDULED)],["Address flagged",inSet(FLAGGED)],["Interested",cnt("Interested")],["Nominated",cnt("Nominated")],["Declined",cnt("Declined")]].map(c=>`<div class="card"><b>${c[1]}</b><span>${c[0]}</span></div>`).join("");
   renderLog();
 }
 function renderLog(){ $("log").innerHTML=logs.slice(0,30).map(e=>`<div><b>${esc(e.who)}</b> ${esc(e.text)} <span style="color:#889">(${new Date(e.at).toLocaleString()})</span></div>`).join("")||"<div>No changes yet.</div>"; }
 
-/* ===== change with verification ===== */
 function edit(el){
   const l=leads.find(x=>x.id===el.dataset.id), f=el.dataset.f;
   if(l[f]===el.value)return;
@@ -198,10 +266,10 @@ async function confirmChange(){
     await persist(l); await addLog(who,"changed "+p.msg);
   }else if(p.type==="add"){
     const l={id:"n"+Date.now(),name:"New lead",assoc:"",country:"",role:"",email:"",linkedin:"",status:"Not started",date:"",notes:"",by:who,at:now()};
-    leads.unshift(l); await persist(l); await addLog(who,"added a new lead");
+    if(!db) leads.unshift(l);
+    await persist(l); await addLog(who,"added a new lead");
   }else if(p.type==="del"){
-    leads=leads.filter(x=>x.id!==p.id);
-    if(db) await db.collection("leads").doc(p.id).delete(); else saveLocal();
+    if(db){ try{ await db.ref("leads/"+p.id).remove(); }catch(e){ showMsg("err","Delete failed: "+e.message); } } else {leads=leads.filter(x=>x.id!==p.id);saveLocal();}
     await addLog(who,p.msg);
   }
   render();
