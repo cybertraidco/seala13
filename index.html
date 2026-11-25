@@ -95,7 +95,7 @@ const FIREBASE_CONFIG = {
 };
 
 // Change this value whenever SEED changes and you want the live data replaced once.
-const DATA_VERSION="2026-11-25-87";
+const DATA_VERSION="2026-11-25-87-dates26";
 
 const STATUSES=["Not started","Drafted","Mail sent","Invitation scheduled","Follow-up 1 scheduled","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined","Bounced","Mail not found","Address unavailable"];
 const SCHEDULED=["Invitation scheduled","Follow-up 1 scheduled"];
@@ -202,7 +202,8 @@ let db=null, leads=[], logs=[], pending=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 const now=()=>new Date().toISOString();
-const mk=(r,i)=>({id:"s"+(i+1),name:r[0],assoc:r[1],country:r[2],role:r[3],email:r[4],linkedin:r[5],status:r[6],date:r[7]||"",notes:r[8]||"",by:"",at:""});
+// Mail date: rows with a "26 Nov" mail in the notes get 2026-11-26 in the date column.
+const mk=(r,i)=>({id:"s"+(i+1),name:r[0],assoc:r[1],country:r[2],role:r[3],email:r[4],linkedin:r[5],status:r[6],date:((r[8]||"").indexOf("26 Nov")>-1?"2026-11-26":(r[7]||"")),notes:r[8]||"",by:"",at:""});
 const configured=()=>FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey&&FIREBASE_CONFIG.apiKey.indexOf("YOUR_")!==0&&FIREBASE_CONFIG.databaseURL.indexOf("YOUR_")===-1;
 function showMsg(type,text){const m=$("msg");m.className=type;m.textContent=text}
 function hideMsg(){$("msg").className="";$("msg").textContent=""}
