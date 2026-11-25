@@ -94,6 +94,9 @@ const FIREBASE_CONFIG = {
   appId: "1:164377799490:web:fa1b390c70c3049071f6db"
 };
 
+// Change this value whenever SEED changes and you want the live data replaced once.
+const DATA_VERSION="2026-11-25-87";
+
 const STATUSES=["Not started","Drafted","Mail sent","Invitation scheduled","Follow-up 1 scheduled","Follow-up 1","Follow-up 2","Follow-up 3","Replied","Interested","Nominated","Declined","Bounced","Mail not found","Address unavailable"];
 const SCHEDULED=["Invitation scheduled","Follow-up 1 scheduled"];
 const FLAGGED=["Mail not found","Address unavailable"];
@@ -212,27 +215,45 @@ function sortLeads(a){
   });
 }
 
+async function autoSync(){
+  try{
+    const snap=await db.ref("meta/version").once("value");
+    if(snap.val()===DATA_VERSION) return;
+    showMsg("info","Updating the tracker to the latest sheet data...");
+    const obj={};
+    SEED.map(mk).forEach(l=>{obj[l.id]=l});
+    await db.ref("leads").set(obj);
+    await db.ref("meta/version").set(DATA_VERSION);
+    hideMsg();
+  }catch(e){
+    showMsg("err","Auto update failed: "+e.message+". Check the Realtime Database rules allow writing, then reload the page.");
+  }
+}
+
 async function init(){
   if(configured()){
     try{
       firebase.initializeApp(FIREBASE_CONFIG);
       db=firebase.database();
     }catch(e){ showMsg("err","Firebase failed to start: "+e.message); }
-    $("mode").textContent="Shared mode (live)";
+  }
+  if(db){
+    $("mode").textContent="Shared mode (live) \u00B7 build "+SEED.length;
+    $("seedBtn").style.display="inline-block";
     db.ref("leads").on("value",s=>{
       const v=s.val()||{};
       leads=sortLeads(Object.values(v));
-      $("seedBtn").style.display="inline-block";
       if(!leads.length) showMsg("info","The database is empty. Click \"Sync sheet data\" to load the contacts.");
-      else hideMsg();
+      else if($("msg").className==="info"&&$("msg").textContent.indexOf("empty")>-1) hideMsg();
       if(!document.activeElement||!document.activeElement.closest("#tb"))render();
     },err=>{
-      showMsg("err","Cannot read the database: "+err.message+". In Firebase, open Realtime Database, then Rules, set read and write to true, and click Publish.");
+      showMsg("err","Cannot read the database: "+err.message+". Check the Realtime Database rules.");
     });
     db.ref("log").orderByChild("at").limitToLast(100).on("value",s=>{
       const arr=[]; s.forEach(c=>{arr.push(c.val())});
       logs=arr.reverse(); renderLog();
     },()=>{});
+    autoSync();
   }else{
     leads=JSON.parse(localStorage.getItem("seala13_leads")||"null")||SEED.map(mk);
     logs=JSON.parse(localStorage.getItem("seala13_log")||"[]");
@@ -257,9 +278,10 @@ async function seed(){
   try{
     showMsg("info","Loading contacts...");
     await db.ref("leads").set(obj);
+    await db.ref("meta/version").set(DATA_VERSION);
     hideMsg();
   }catch(e){
-    showMsg("err","Could not load data: "+e.message+". Check Realtime Database, then Rules, set read and write to true and click Publish.");
+    showMsg("err","Could not load data: "+e.message+". Check the Realtime Database rules.");
   }
 }
 
@@ -272,7 +294,7 @@ function render(){
   const rows=leads.filter(l=>(!fs||l.status===fs)&&(!fc||l.country===fc)&&(!q||JSON.stringify(l).toLowerCase().includes(q)));
   $("tb").innerHTML=rows.map(l=>`<tr>
     ${["name","assoc","country","role","email"].map(f=>`<td><input value="${esc(l[f])}" data-id="${l.id}" data-f="${f}" onchange="edit(this)"></td>`).join("")}
-    <td style="display:flex;align-items:center"><input value="${esc(l.linkedin)}" data-id="${l.id}" data-f="linkedin" onchange="edit(this)">${l.linkedin?`<a href="${esc(l.linkedin)}" target="_blank" title="Open">&#128279;</a>`:""}</td>
+    <td style="display:flex;align-items:center"><input value="${esc(l.linkedin)}" data-id="${l.id}" data-f="linkedin" onchange="edit(this)">${l.linkedin?`<a href="${esc(l.linkedin)}" target="_blank" rel="noopener noreferrer" title="Open">&#128279;</a>`:""}</td>
     <td><select class="s-${(l.status||"Not started").replace(/ /g,"-")}" data-id="${l.id}" data-f="status" onchange="edit(this)">${STATUSES.map(s=>`<option ${s===l.status?"selected":""}>${s}</option>`).join("")}</select></td>
     <td><input type="date" value="${esc(l.date)}" data-id="${l.id}" data-f="date" onchange="edit(this)"></td>
     <td><input value="${esc(l.notes)}" data-id="${l.id}" data-f="notes" onchange="edit(this)"></td>
