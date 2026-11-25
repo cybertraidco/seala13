@@ -63,7 +63,7 @@
     <select id="fc" onchange="render()"></select>
     <button class="alt" onclick="addLead()">+ Add lead</button>
     <button class="ghost" onclick="exportCSV()">Export CSV</button>
-    <button class="alt" id="seedBtn" style="display:none" onclick="seed()">Load starter data</button>
+    <button class="alt" id="seedBtn" style="display:none" onclick="seed()">Sync sheet data</button>
   </div>
   <div class="note">Click any cell to edit. Every change asks for your name before it is saved.</div>
   <div class="wrap"><table>
@@ -98,54 +98,101 @@ const STATUSES=["Not started","Drafted","Mail sent","Invitation scheduled","Foll
 const SCHEDULED=["Invitation scheduled","Follow-up 1 scheduled"];
 const FLAGGED=["Mail not found","Address unavailable"];
 const L="https://www.linkedin.com/in/";
+const F2="Follow-up 1 sent 23 Nov. Follow-up 2 scheduled 26 Nov.";
+const FS="Follow-up 1 scheduled 26 Nov.";
+const REP="Got back to us and replied.";
+const ADR="Mail address isn't available.";
+const MNF="Mail not found.";
+const INV="First mail scheduled 26 Nov.";
 // [name, association, country, role, email, linkedin, status, mail date, notes]
 const SEED=[
-["Mr. Truong Gia Binh","VINASA","Vietnam","Chairman, Founder of FPT Group","binh@fpt.com.vn",L+"binh-truong-gia-9a9b2260/","Mail not found","2026-11-19",""],
-["Mao Manel","CAMFEBA","Cambodia","Human Resource and Business Advisor, CKK Consulting Group","maomanel@camfeba.com",L+"mao-manel-5555kh/","Address unavailable","2026-11-19","Sheet: Mail address isn't available."],
-["Thomas Schings","CAFT","Cambodia","Member, Board of Directors of CAFT","thomas@caftkh.org",L+"thomasschings/","Address unavailable","2026-11-19","Sheet: Mail address isn't available."],
-["Bun Norin Kong","CEA","Cambodia","Chief Executive Officer, CCU Commercial Bank Plc","bunnorin.kong@ccu-bank.com / kongbunnorin@gmail.com",L+"kongbunnorin/","Mail not found","2026-11-19",""],
-["Long Lam","VINITO","Vietnam","Chairman, HCMC Computer Association (HCA)","long@vietnamisc.com / eventclick@gmail.com",L+"longlam/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Tonichi Achurra-Parekh","IBPAP","Philippines","Consultant, Concentrix Philippines","tonichi.achurra-parekh@concentrix.com",L+"tonichiparekh/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Nicki Agcaoili","IBPAP","Philippines","Chief Country Executive, Carelon Global Solutions Philippines, Inc.","nicki.agcaoili@legato.com",L+"nickiagcaoili/","Replied","2026-11-19","Got back to us and replied."],
-["Toan Ngo","VINITO","Vietnam","President, BTZ Group","toan@vnito.org / ngovantoan@gmail.com",L+"toanngo/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Mr. Pham Tan Cong (Thanh Pham)","VINASA","Vietnam","Standing Deputy Secretary, Party Committee of Centrally-run Business's Sector","thanh.pham@saigontechnology.com",L+"thanhphamsoftware/","Replied","2026-11-19","Got back to us and replied."],
-["Sokleang Long","CAMFEBA","Cambodia","Senior Legal Officer for Corporate Registration, Hattha Bank","long.sokleang@hatthabank.com",L+"sokleang-long-707a961aa/","Address unavailable","2026-11-19","Sheet: Mail address isn't available."],
-["Tomas Pokorny","CAFT","Cambodia","CEO and co-founding member, Pi Pay","tomas@pipay.com",L+"pokornytom/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Ayhee Campos","IBPAP","Philippines","Country Head and Regional Delivery Center Head, Infosys BPM","marhodora_campos@infosys.com",L+"ma-rhodora-ayhee-campos-945184212/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Hong Tran","VINITO","Vietnam","Sr. Vice President, TMA Solutions","tphong@tma.com.vn",L+"tranphuchong/","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
-["Sanjiv Gupta","IBPAP","Philippines","President and Country Head of IBM Consulting's Global Delivery Center in the Philippines of Infosys BPM","sanjiv.gupta@ibm.com / sanjiv_k_gupta@hotmail.com",L+"sanjiv-k-gupta/","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet. Role text as in sheet."],
-["An Mai","VINITO","Vietnam","President, IMT Solutions","an.mai@imt-soft.com / ansaigon@gmail.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
-["Van Dang","VINITO","Vietnam","CEO, Savvycom","van.dang@savvycomsoftware.com / van.dangthi@gmail.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
-["Quyen Nguyen","VINITO","Vietnam","CEO, Sharework","quyen.nguyen@women-in-tech.org","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
-["Tai Huynh","VINITO","Vietnam","CEO, Kyanon Digital","tai@agilevietnam.org / hlttai@gmail.com","","Mail not found","","Sheet: Sent to gmail. First mail not found."],
-["Thuan Tran","VINITO","Vietnam","Regional Director of Commercial and Partnership and Country Executive Vietnam, TASConnect","thuan.tran@tasconnect.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov. Mail date not given in sheet."],
-["Lay Chantheara","CAMFEBA","Cambodia","1. Private Sector Coordinator, AVT Project; 2. National Industrial Liaison of CAMFEBA","lchantheara@camfeba.com","","Follow-up 1 scheduled","","Sheet: Schedule for 20 Nov."],
-["Piseth Sok","CAMFEBA","Cambodia","1. CEO and 2. President of 1. GGear Group, 2. Footprints International School","pisethsok@ggear.com.kh","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov."],
-["Sopheap Eng","CAMFEBA","Cambodia","1. Managing Director; 2. Founding Member / Council Member (part-time) of 1. Optimal P, 2. Asean Future Workforce Council (AFWC)","esopheap@yahoo.com","","Follow-up 1 scheduled","","Follow-up 1 scheduled 23 Nov."],
-["Glen de Leon","CAFT","Cambodia","Marketing and Public Relations Consultant of CAFT","glen@brixiegroup.com","","Mail not found","",""],
-["Ambe Tierro","IBPAP","Philippines","Country Managing Director, Accenture Technology Centers in the Philippines; Lead of Accenture in the Philippines","ambe.c.tierro@accenture.com / actierro@gmail.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Kaye Bondoc-De La Cruz","IBPAP","Philippines","Head, IT-BPM Group of PLDT Enterprise and PLDT Global Enterprise","kayedelacruz@pldt.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["David Leechiu","IBPAP","Philippines","CEO, Leechiu Property Consultants, Inc.","david@leechiu.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Sandeep Uppal","IBPAP","Philippines","President and Chief Executive Officer, HSBC Philippines","sandeep.uppal@hsbc.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Marlyn Montano","IBPAP","Philippines","President, Animation Council Philippines, Inc. (ACPI) / CEO","marlyn.montano@teamappinc.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Haidee Enriquez","IBPAP","Philippines","President, Contact Center Association of the Philippines (CCAP) / CEO of MicroSourcing, Inc.","haidee@microsourcing.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Paolo La'O","IBPAP","Philippines","Chairman, Global Capability Center Council Philippines (GC3)","paolo.lao@giccphilippines.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Alvin Juban","IBPAP","Philippines","Chairman, Game Developers Association of the Philippines (GDAP)","alvin.juban@synergy88.media","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["JL Botor","IBPAP","Philippines","President, Healthcare Information Management Association of the Philippines (HIMAP) / Country Head of Worldsource Philippines","jl.botor@sustainablebilling.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Jonathan De Luzuriaga","IBPAP","Philippines","President, Philippine Software Industry Association (PSIA) / CEO of Spring Valley PH","jdl@springvalley.tech","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Jack Madrid","IBPAP","Philippines","President and CEO of IBPAP","jackmadrid@ibpap.org","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Atty. Bob Guinto","IBPAP","Philippines","Corporate Secretary, IBPAP / Managing Director of Nisce Mamuric Guinto Rivera and Alcantara Law Offices","bob.guinto@nmgra-law.com","","Invitation scheduled","","First mail scheduled 23 Nov."],
-["Zain Tariq","APICTA / P@SHA","Pakistan","Economy Coordinator (Manager Industry Engagement), Pakistan Software Houses Association (P@SHA)","zain@pasha.org.pk",L+"zain-tariq-a4271b186/","Replied","2026-11-19","Got back to us and replied."],
-["Vajeendra S Kandegamage","APICTA / BCS Sri Lanka","Sri Lanka","Immediate Past Chairman, BCS Sri Lanka Section","vajeendrak@bcssrilanka.org",L+"vajeendrask/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Muhammad Razan Haji Abdul Razak","APICTA / AITI","Brunei","Authority for Info-Communications Technology Industry (AITI) / Info-Comm Federation (IFB), Member (AITI)","muhd.razak@aiti.gov.bn",L+"muhd-razan-hj-abd-razak-4295aa200/","Mail not found","2026-11-19",""],
-["Dr. Gansen Zhao","APICTA / SCNU","China","Professor of Computer Science, South China Normal University","gzhao@m.scnu.edu.cn",L+"zhaogansen/","Mail not found","2026-11-19",""],
-["Mr. Mic Suphachai Sachaphibulkij","APICTA / ATCI","Thailand","Advisor, Association of Thai ICT Industry (ATCI)","mic_ss@yahoo.com",L+"mic-sachaphibulkij-682a4410/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Mr. Richan Shrestha","APICTA / NAS-IT","Nepal","President, Nepal Association for Software and I.T. Services Companies (NAS-IT)","richan.shrestha@quickfoxtechnologies.com",L+"richanshrestha/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Daw Khin Aye Wyn","APICTA / MCF","Myanmar","Economy Coordinator / Secretary General, Myanmar Computer Federation (MCF)","kaw@mcf.org.mm",L+"josephinesu/","Follow-up 1 scheduled","2026-11-19","Follow-up 1 scheduled 23 Nov."],
-["Mrs. Agnes Mak","APICTA / HKCS","Hong Kong","Member of Advisory Council, Hong Kong Computer Society (HKCS)","agnes@hkpc.org",L+"agnes-mak-324a1190/","Follow-up 1 scheduled","2026-11-20","Follow-up 1 scheduled 23 Nov."],
-["Dimas Aryo Wicaksono","APICTA / ASPILUKI","Indonesia","Economy Coordinator, Asosiasi Perantishi Lunak Telematika Indonesia (ASPILUKI)","dimas.aryo@gmail.com",L+"dimas-satria-wicaksono/","Follow-up 1 scheduled","2026-11-20","Follow-up 1 scheduled 23 Nov."],
-["Prof Cheng Kiang Farn","APICTA / TCA","Chinese Taipei","Visiting Professor, Taiwan Computer Association (TCA)","ckiangfarn@ncu.edu",L+"ck-farn-a04b5a55/","Mail not found","2026-11-20",""],
-["Ms. Suwipa Wanasathop","APICTA / NSTDA","Thailand","Registrar Observer, National Science and Technology Development Agency (NSTDA)","suwipa@nstda.or.th","","Follow-up 1 scheduled","2026-11-20","Follow-up 1 scheduled 23 Nov."]
+["Mr. Truong Gia Binh","VINASA","Vietnam","Chairman, Founder of FPT Group","binh@fpt.com.vn",L+"binh-truong-gia-9a9b2260/","Mail not found","2026-11-19",MNF],
+["Mao Manel","CAMFEBA","Cambodia","Human Resource and Business Advisor, CKK Consulting Group","maomanel@camfeba.com",L+"mao-manel-5555kh/","Address unavailable","2026-11-19",ADR],
+["Thomas Schings","CAFT","Cambodia","Member, Board of Directors of CAFT","thomas@caftkh.org",L+"thomasschings/","Address unavailable","2026-11-19",ADR],
+["Bun Norin Kong","CEA","Cambodia","Chief Executive Officer, CCU Commercial Bank Plc","bunnorin.kong@ccu-bank.com / kongbunnorin@gmail.com",L+"kongbunnorin/","Mail not found","2026-11-19",MNF],
+["Long Lam","VINITO","Vietnam","Chairman, HCMC Computer Association (HCA)","long@vietnamisc.com / eventclick@gmail.com",L+"longlam/","Follow-up 1","2026-11-19",F2],
+["Tonichi Achurra-Parekh","IBPAP","Philippines","Consultant, Concentrix Philippines","tonichi.achurra-parekh@concentrix.com",L+"tonichiparekh/","Follow-up 1","2026-11-19",F2],
+["Nicki Agcaoili","IBPAP","Philippines","Chief Country Executive, Carelon Global Solutions Philippines, Inc.","nicki.agcaoili@legato.com",L+"nickiagcaoili/","Replied","2026-11-19",REP],
+["Toan Ngo","VINITO","Vietnam","President, BTZ Group","toan@vnito.org / ngovantoan@gmail.com",L+"toanngo/","Follow-up 1","2026-11-19",F2],
+["Mr. Pham Tan Cong","VINASA","Vietnam","Standing Deputy Secretary, Party Committee of Centrally-run Business's Sector","thanh.pham@saigontechnology.com",L+"thanhphamsoftware/","Replied","2026-11-19",REP],
+["Sokleang Long","CAMFEBA","Cambodia","Senior Legal Officer for Corporate Registration, Hattha Bank","long.sokleang@hatthabank.com",L+"sokleang-long-707a961aa/","Address unavailable","2026-11-19",ADR],
+["Tomas Pokorny","CAFT","Cambodia","CEO and co-founding member, Pi Pay","tomas@pipay.com",L+"pokornytom/","Follow-up 1","2026-11-19",F2],
+["Ayhee Campos","IBPAP","Philippines","Country Head and Regional Delivery Center Head, Infosys BPM","marhodora_campos@infosys.com",L+"ma-rhodora-ayhee-campos-945184212/","Follow-up 1","2026-11-19",F2],
+["Hong Tran","VINITO","Vietnam","Sr. Vice President, TMA Solutions","tphong@tma.com.vn",L+"tranphuchong/","Follow-up 1","2026-11-20",F2],
+["Sanjiv Gupta","IBPAP","Philippines","President and Country Head of IBM Consulting's Global Delivery Center in the Philippines of Infosys BPM","sanjiv.gupta@ibm.com / sanjiv_k_gupta@hotmail.com",L+"sanjiv-k-gupta/","Follow-up 1","2026-11-20",F2+" Role text as in sheet."],
+["An Mai","VINITO","Vietnam","President, IMT Solutions","an.mai@imt-soft.com / ansaigon@gmail.com",L+"anmai/","Follow-up 1","2026-11-20",F2],
+["Van Dang","VINITO","Vietnam","CEO, Savvycom","van.dang@savvycomsoftware.com / van.dangthi@gmail.com",L+"thanhvandang/","Follow-up 1","2026-11-20",F2],
+["Quyen Nguyen","VINITO","Vietnam","CEO, Sharework","quyen.nguyen@women-in-tech.org",L+"quyen-nguyen-sharework/","Follow-up 1","2026-11-20",F2],
+["Tai Huynh","VINITO","Vietnam","CEO, Kyanon Digital","tai@agilevietnam.org / hlttai@gmail.com",L+"hlttai/","Mail not found","2026-11-20","Sent to gmail. First mail not found."],
+["Thuan Tran","VINITO","Vietnam","Regional Director of Commercial and Partnership and Country Executive Vietnam, TASConnect","thuan.tran@tasconnect.com",L+"thuan-tranthidieu/","Follow-up 1","2026-11-20",F2],
+["Piseth Sok","CAMFEBA","Cambodia","1. CEO and 2. President of 1. GGear Group, 2. Footprints International School","pisethsok@ggear.com.kh",L+"oknhapiseth/","Follow-up 1","2026-11-20",F2],
+["Sopheap Eng","CAMFEBA","Cambodia","1. Managing Director; 2. Founding Member / Council Member (part-time) of 1. Optimal P, 2. Asean Future Workforce Council (AFWC)","esopheap@yahoo.com",L+"sopheap-eng-40426449/","Follow-up 1","2026-11-20",F2],
+["Glen de Leon","CAFT","Cambodia","Marketing and Public Relations Consultant of CAFT","glen@brixiegroup.com",L+"glenoliverdeleon/","Mail not found","2026-11-20",MNF],
+["Ambe Tierro","IBPAP","Philippines","Country Managing Director, Accenture Technology Centers in the Philippines; Lead of Accenture in the Philippines","ambe.c.tierro@accenture.com / actierro@gmail.com",L+"ambetierro/","Follow-up 1 scheduled","2026-11-23",FS],
+["Kaye Bondoc-De La Cruz","IBPAP","Philippines","Head, IT-BPM Group of PLDT Enterprise and PLDT Global Enterprise","kayedelacruz@pldt.com",L+"kaye-b-dela-cruz-89754b90/","Mail not found","2026-11-23",MNF],
+["David Leechiu","IBPAP","Philippines","CEO, Leechiu Property Consultants, Inc.","david@leechiu.com",L+"davidleechiu/","Follow-up 1 scheduled","2026-11-23",FS],
+["Sandeep Uppal","IBPAP","Philippines","President and Chief Executive Officer, HSBC Philippines","sandeep.uppal@hsbc.com",L+"sandeep-uppal-296321/","Mail not found","2026-11-23",MNF],
+["Marlyn Montano","IBPAP","Philippines","President, Animation Council Philippines, Inc. (ACPI) / CEO","marlyn.montano@teamappinc.com",L+"marlyn-montano-451b7a3/","Follow-up 1 scheduled","2026-11-23",FS],
+["Haidee Enriquez","IBPAP","Philippines","President, Contact Center Association of the Philippines (CCAP) / CEO of MicroSourcing, Inc.","haidee@microsourcing.com",L+"enriquezhaidee/","Follow-up 1 scheduled","2026-11-23",FS],
+["Paolo La'O","IBPAP","Philippines","Chairman, Global Capability Center Council Philippines (GC3)","paolo.lao@giccphilippines.com",L+"paololao/","Mail not found","2026-11-23",MNF],
+["Alvin Juban","IBPAP","Philippines","Chairman, Game Developers Association of the Philippines (GDAP)","alvin.juban@synergy88.media",L+"alvinjuban/","Follow-up 1 scheduled","2026-11-23",FS],
+["JL Botor","IBPAP","Philippines","President, Healthcare Information Management Association of the Philippines (HIMAP) / Country Head of Worldsource Philippines","jl.botor@sustainablebilling.com",L+"jl-botor-25832965/","Follow-up 1 scheduled","2026-11-23",FS],
+["Jonathan De Luzuriaga","IBPAP","Philippines","President, Philippine Software Industry Association (PSIA) / CEO of Spring Valley PH","jdl@springvalley.tech",L+"jonathan-de-luzuriaga-b079454/","Follow-up 1 scheduled","2026-11-23",FS],
+["Jack Madrid","IBPAP","Philippines","President and CEO of IBPAP","jackmadrid@ibpap.org",L+"jackmadrid/","Follow-up 1 scheduled","2026-11-23",FS],
+["Atty. Bob Guinto","IBPAP","Philippines","Corporate Secretary, IBPAP / Managing Director of Nisce Mamuric Guinto Rivera and Alcantara Law Offices","bob.guinto@nmgra-law.com",L+"bob-guinto-44268b112/","Follow-up 1 scheduled","2026-11-23",FS],
+["Chi Nguyen","VINITO","Vietnam","BD Director, NashTech Vietnam","chi.nguyen@nashtechglobal.com",L+"chi-nguyen-2b928813/","Mail not found","2026-11-23",MNF],
+["Dai Tran","VINITO","Vietnam","Managing Director, KMS Technology","dai_tran@csc.co.in / daitt@yahoo.com",L+"daitt/","Mail not found","2026-11-23",MNF],
+["An Nguyen","VINITO","Vietnam","Director, Eurofins IT Delivery Center Vietnam","annguyen@eurofins.com / thaian113a@gmail.com",L+"an-nguyen-2320a127/","Follow-up 1 scheduled","2026-11-24",FS],
+["Son Pham","VINITO","Vietnam","CEO, NTQ Solution","son.pham@ntq-solution.com.vn",L+"son-pham-david-17061747/","Follow-up 1 scheduled","2026-11-24",FS],
+["Long Vuong","VINITO","Vietnam","COO, Agest Vietnam","long.vuong@agest.vn",L+"long-vuong-99085a11/","Follow-up 1 scheduled","2026-11-24",FS],
+["Thanh Tran","VINITO","Vietnam","CEO, Success Software Services","thanh.tran@successsoftware.global",L+"trancongthanh/","Follow-up 1 scheduled","2026-11-24",FS],
+["Annie Nguyen","VINITO","Vietnam","CEO, Uni8","annie@uni8.club / queenbee_an@yahoo.com",L+"annie-uni8/","Follow-up 1 scheduled","2026-11-24",FS],
+["Nhuan Lai","VINITO","Vietnam","CEO, Atalink","eric.lai@larion.com",L+"ericlai77/","Follow-up 1 scheduled","2026-11-24",FS],
+["Quang Nguyen","VINITO","Vietnam","Chairman, GITS","quang.nguyen@exe.com.vn",L+"quanghn","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Lam Quang Nam","VINASA","Vietnam","Vice Chairman; Chairman, SSG JSC","bignam@gmail.com",L+"nam-lam-quang-2460268/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Ngo Dien Hy","VINASA","Vietnam","Deputy General Director, VNPT Group","ngodienhy@vnpt.vn",L+"ngohy/","Follow-up 1 scheduled","2026-11-24",FS],
+["Ms. Nguyen Thi Thu Giang","VINASA","Vietnam","Vice-Chairwoman and Secretary-General, VINASA","nttgiang@vinasa.org.vn",L+"nguyen-thi-thu-giang-479319200/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Nguyen Tu Quang","VINASA","Vietnam","Chairman, BKAV Technology Group","lamq@bkav.com",L+"quang-l%C3%A2m-391ba8122/","Mail not found","2026-11-24",MNF+" Verify LinkedIn name."],
+["Mr. Lu Thanh Long","VINASA","Vietnam","Chairman, MISA JSC","ltlong@misa.com.vn",L+"ltlongmisa/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Mai Duy Quang","VINASA","Vietnam","Director, TFI Accelerator","quang@blockchain.vn / mdquang@gmail.com",L+"quangmd/","Follow-up 1 scheduled","2026-11-24",FS+" Sheet2 lists organization as ClassOn."],
+["Mr. Nguyen Hoa Binh","VINASA","Vietnam","Chairman of the Board of Directors, Nextech Group","peace@nexttech.asia / thai.hoc.nguyen@gmail.com",L+"nguyen-hoa-binh-02599815/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Phan The Dung","VINASA","Vietnam","General Director, RikkeiSoft","dung.phan@rikkeisoft.com",L+"phan-the-dung-02259032/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Dang Ngoc Bao","VINASA","Vietnam","General Director, CMC Global","dnbaovsii@gmail.com",L+"bao-dang-ngoc/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Nguyen Huynh Son","VINASA","Vietnam","Chairman of the Board of Directors, FSI I&T Development JSC","sonnh@fsivietnam.com.vn",L+"nguy%E1%BB%85n-h%C3%B9ng-s%C6%A1n-586b2529/","Follow-up 1 scheduled","2026-11-24",FS+" Verify LinkedIn name."],
+["Mr. Le Quang Luong","VINASA","Vietnam","General Director, Luvina JSC","lqluong@luvina.net",L+"le-luong-57212126/","Follow-up 1 scheduled","2026-11-24",FS],
+["Mr. Nguyen Ba Diep","VINASA","Vietnam","Co-Founder, M Service JSC","diepland@gmail.com",L+"mbadiep/","Follow-up 1 scheduled","2026-11-24",FS],
+["An Ngoc Thao","VINASA","Vietnam","Deputy Secretary-General, VINASA","anngocthao@vinasa.org.vn",L+"an-thao-9934a631/","Mail not found","2026-11-24",MNF],
+["Vu Phuong Thao","VINASA","Vietnam","Director of Service and Development Department, VINASA","thaovp@vinasa.org.vn",L+"vu-thao-11553971/","Follow-up 1 scheduled","2026-11-24",FS],
+["Kieu Hong Nga","VINASA","Vietnam","Head Office Auditor, VINASA","ngakh@vinasa.org.vn","","Follow-up 1 scheduled","2026-11-24",FS+" LinkedIn not found."],
+["Cao Anh Hang","VINASA","Vietnam","Deputy Director of BDS Membership Management, VINASA","hangca@vinasa.org.vn",L+"%C3%A1nh-h%E1%BA%B1ng-cao-80a429219/","Follow-up 1 scheduled","2026-11-24",FS],
+["Nguyen Thi Manh","VINASA","Vietnam","HCMC Office Representative, VINASA","manhnt@vinasa.org.vn",L+"nguy%E1%BB%85n-th%E1%BB%8B-m%E1%BA%A1nh-03a893344/","Follow-up 1 scheduled","2026-11-24",FS],
+["Doan Thuy Ha","VINASA","Vietnam","Head of Editorial Board, Digital Life Magazine","songha@nss.vn","","Follow-up 1 scheduled","2026-11-24",FS+" LinkedIn not found."],
+["Zain Tariq","APICTA / P@SHA","Pakistan","Economy Coordinator (Manager Industry Engagement), Pakistan Software Houses Association (P@SHA)","zain@pasha.org.pk",L+"zain-tariq-a4271b186/","Replied","2026-11-19",REP],
+["Mr. Vajeendra S Kandegamage","APICTA / BCS Sri Lanka","Sri Lanka","Immediate Past Chairman, BCS Sri Lanka Section","vajeendrak@bcssrilanka.org",L+"vajeendrask/","Follow-up 1","2026-11-19",F2],
+["Mr. Muhammad Razan Haji Abdul Razak","APICTA / AITI","Brunei","Authority for Info-Communications Technology Industry (AITI) / Info-Comm Federation (IFB), Member (AITI)","muhd.razak@aiti.gov.bn",L+"muhd-razan-hj-abd-razak-4295aa200/","Mail not found","2026-11-19",MNF],
+["Dr. Gansen Zhao","APICTA / SCNU","China","Professor of Computer Science, South China Normal University","gzhao@m.scnu.edu.cn",L+"zhaogansen/","Mail not found","2026-11-19",MNF],
+["Mr. Mic Suphachai Sachaphibulkij","APICTA / ATCI","Thailand","Advisor, Association of Thai ICT Industry (ATCI)","mic_ss@yahoo.com",L+"mic-sachaphibulkij-682a4410/","Follow-up 1","2026-11-19",F2],
+["Mr. Richan Shrestha","APICTA / NAS-IT","Nepal","President, Nepal Association for Software and I.T. Services Companies (NAS-IT)","richan.shrestha@quickfoxtechnologies.com",L+"richanshrestha/","Follow-up 1","2026-11-19",F2],
+["Daw Khin Aye Wyn","APICTA / MCF","Myanmar","Economy Coordinator / Secretary General, Myanmar Computer Federation (MCF)","kaw@mcf.org.mm",L+"josephinesu/","Follow-up 1","2026-11-19",F2+" Verify LinkedIn link."],
+["Mrs. Agnes Mak","APICTA / HKCS","Hong Kong","Member of Advisory Council, Hong Kong Computer Society (HKCS)","agnes@hkpc.org",L+"agnes-mak-324a1190/","Follow-up 1","2026-11-20",F2],
+["Dimas Aryo Wicaksono","APICTA / ASPILUKI","Indonesia","Economy Coordinator, Asosiasi Peranti Lunak Telematika Indonesia (ASPILUKI)","dimas.aryo@gmail.com / apictaid@gmail.com",L+"dimas-satria-wicaksono/","Follow-up 1","2026-11-20",F2+" Verify LinkedIn link."],
+["Mr. Prof Cheng Kiang Farn","APICTA / TCA","Chinese Taipei","Visiting Professor, Taiwan Computer Association (TCA)","ckiangfarn@ncu.edu",L+"ck-farn-a04b5a55/","Mail not found","2026-11-20",MNF],
+["Ms. Suwipa Wanasathop","APICTA / NSTDA","Thailand","Registrar Observer, National Science and Technology Development Agency (NSTDA)","suwipa@nstda.or.th",L+"suwipa-wanasathop-1939a620a/","Follow-up 1","2026-11-20",F2+" Sheet lists a second profile: suwipa-wanasathop-84a4a257."],
+["Grace Lo","APICTA / HKCS","Hong Kong","Economy Coordinator (Executive Director), Hong Kong Computer Society (HKCS)","gracelo@hkcs.org.hk",L+"grace-lo-53299b120/","Invitation scheduled","",INV],
+["Carol Ho","APICTA / HKCS","Hong Kong","Economy Coordinator (Executive Officer), HKCS","carolho@hkcs.org.hk",L+"carol-ho-10b908230/","Invitation scheduled","",INV],
+["Joes Rina Hoendari","APICTA / ASPILUKI","Indonesia","Economy Coordinator, ASPILUKI","gm.hrd@dnet.net.id",L+"joes-rina-h-b5b816140/","Invitation scheduled","",INV],
+["Mr. Stan Singh","APICTA / PIKOM","Malaysia","PIKOM Advisor, PIKOM / MDEC","stansingh@ironhorse.asia",L+"stan-singh-81114365/","Invitation scheduled","",INV],
+["Grace Lee","APICTA / PIKOM","Malaysia","Economy Coordinator (Manager), PIKOM","grace@pikom.org.my",L+"grace-lee-3546b395/","Invitation scheduled","",INV],
+["Mr. Narayan Koirala","APICTA / NAS-IT","Nepal","Executive Member, NAS-IT","koirala@eminenceways.com",L+"narayankoirala/","Invitation scheduled","",INV],
+["Anish Shrestha","APICTA / NAS-IT","Nepal","Economy Coordinator, NAS-IT","anish@techkraftic.com",L+"anixification/","Invitation scheduled","",INV],
+["Mr. Muhammad Zohaib Khan","APICTA / P@SHA","Pakistan","APICTA Exco, Pakistan Software Houses Association (P@SHA)","zohaib@a2zcreatorz.com",L+"muhammad-zohaib-khan-8b82419/","Invitation scheduled","",INV],
+["Prof Dr Shoab Ahmad Khan","APICTA / CARE","Pakistan","CEO, CARE Pvt Ltd","shoab@case.edu.pk / kshoab@yahoo.com",L+"kshoab/","Invitation scheduled","",INV],
+["Mr. Sajjad Mustafa Syed","APICTA / ExD","Pakistan","Chairman, Excellence Delivered (ExD)","sajjad.syed@exdnow.com",L+"sajjad-syed-exd/","Invitation scheduled","",INV],
+["Ali Hasani","APICTA / P@SHA","Pakistan","Economy Coordinator (Secretary General), P@SHA","hasani@gmail.com",L+"hasani1/","Invitation scheduled","",INV],
+["Dr. Dayan Rajapakse","APICTA / FITIS","Sri Lanka","Chairman, Federation of Information Technology Industry Sri Lanka (FITIS)","dayan@esoft.lk",L+"dayan-rajapakse-94489146/","Invitation scheduled","",INV],
+["Mr. Kalinga Ihalagedara","APICTA / FITIS","Sri Lanka","President of Software Chapter, FITIS","kalingai@orelit.com",L+"kalingaihalagedara/","Invitation scheduled","",INV],
+["Rikaz Moin","APICTA / FITIS","Sri Lanka","Economy Coordinator (Vice President Software Chapter), FITIS","rikaz@dmsswt.com",L+"rikazm/","Invitation scheduled","",INV],
+["Isuru Sirinimal","APICTA / BCS Sri Lanka","Sri Lanka","Economy Coordinator, APICTA / Director of Edge Tech Innovation","isuru.sirinimal@yahoo.com",L+"isuru-sirinimal/","Invitation scheduled","",INV]
 ];
 
 let db=null, leads=[], logs=[], pending=null;
@@ -175,8 +222,8 @@ async function init(){
     db.ref("leads").on("value",s=>{
       const v=s.val()||{};
       leads=sortLeads(Object.values(v));
-      $("seedBtn").style.display=leads.length?"none":"inline-block";
-      if(!leads.length) showMsg("info","The database is empty. Click \"Load starter data\" to load the contacts.");
+      $("seedBtn").style.display="inline-block";
+      if(!leads.length) showMsg("info","The database is empty. Click \"Sync sheet data\" to load the contacts.");
       else hideMsg();
       if(!document.activeElement||!document.activeElement.closest("#tb"))render();
     },err=>{
@@ -204,11 +251,12 @@ async function addLog(who,text){
   if(db){ try{ await db.ref("log").push(e); }catch(x){} } else {logs.unshift(e);saveLocal();renderLog();}
 }
 async function seed(){
+  if(!confirm("This REPLACES the whole live list with the "+SEED.length+" contacts from the sheet. Any other rows and edits will be removed. Continue?"))return;
   const obj={};
   SEED.map(mk).forEach(l=>{obj[l.id]=l});
   try{
     showMsg("info","Loading contacts...");
-    await db.ref("leads").update(obj);
+    await db.ref("leads").set(obj);
     hideMsg();
   }catch(e){
     showMsg("err","Could not load data: "+e.message+". Check Realtime Database, then Rules, set read and write to true and click Publish.");
